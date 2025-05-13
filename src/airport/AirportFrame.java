@@ -6,7 +6,7 @@ package airport;
 
 /**
  *
- * @author eduar
+ * @author edangulo
  */
 public class AirportFrame extends javax.swing.JFrame {
 
