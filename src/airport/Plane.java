@@ -11,11 +11,17 @@ package airport;
 public class Plane {
     
     private final String id;
+    private String brand;
+    private String model;
     private final int maxCapacity;
+    private String airline;
 
-    public Plane(String id, int maxCapacity) {
+    public Plane(String id, String brand, String model, int maxCapacity, String airline) {
         this.id = id;
+        this.brand = brand;
+        this.model = model;
         this.maxCapacity = maxCapacity;
+        this.airline = airline;
     }
 
     public String getId() {
