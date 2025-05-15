@@ -5,6 +5,7 @@
 package airport;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 /**
  *
@@ -13,34 +14,45 @@ import java.time.LocalDateTime;
 public class Flight {
     
     private final String id;
+    private ArrayList<Passenger> passengers;
+    private Plane plane;
     private Location departureLocation;
     private Location scaleLocation;
     private Location arrivalLocation;
     private LocalDateTime departureDate;
-    private int hoursDurationScale1;
-    private int minutesDurationScale1;
-    private int hoursDurationScale2;
-    private int minutesDurationScale2;
+    private int hoursDurationArrival;
+    private int minutesDurationArrival;
+    private int hoursDurationScale;
+    private int minutesDurationScale;
+    
 
-    public Flight(String id, Location departureLocation, Location arrivalLocation, LocalDateTime departureDate, int hoursDurationScale1, int minutesDurationScale1) {
+    public Flight(String id, Plane plane, Location departureLocation, Location arrivalLocation, LocalDateTime departureDate, int hoursDurationArrival, int minutesDurationArrival) {
         this.id = id;
+        this.passengers = new ArrayList<>();
+        this.plane = plane;
         this.departureLocation = departureLocation;
         this.arrivalLocation = arrivalLocation;
         this.departureDate = departureDate;
-        this.hoursDurationScale1 = hoursDurationScale1;
-        this.minutesDurationScale1 = minutesDurationScale1;
+        this.hoursDurationArrival = hoursDurationArrival;
+        this.minutesDurationArrival = minutesDurationArrival;
+        
+        this.plane.addFlight(this);
     }
 
-    public Flight(String id, Location departureLocation, Location scaleLocation, Location arrivalLocation, LocalDateTime departureDate, int hoursDurationScale1, int minutesDurationScale1, int hoursDurationScale2, int minutesDurationScale2) {
+    public Flight(String id, Plane plane, Location departureLocation, Location scaleLocation, Location arrivalLocation, LocalDateTime departureDate, int hoursDurationArrival, int minutesDurationArrival, int hoursDurationScale, int minutesDurationScale) {
         this.id = id;
+        this.passengers = new ArrayList<>();
+        this.plane = plane;
         this.departureLocation = departureLocation;
         this.scaleLocation = scaleLocation;
         this.arrivalLocation = arrivalLocation;
         this.departureDate = departureDate;
-        this.hoursDurationScale1 = hoursDurationScale1;
-        this.minutesDurationScale1 = minutesDurationScale1;
-        this.hoursDurationScale2 = hoursDurationScale2;
-        this.minutesDurationScale2 = minutesDurationScale2;
+        this.hoursDurationArrival = hoursDurationArrival;
+        this.minutesDurationArrival = minutesDurationArrival;
+        this.hoursDurationScale = hoursDurationScale;
+        this.minutesDurationScale = minutesDurationScale;
+        
+        this.plane.addFlight(this);
     }
 
     public String getId() {
@@ -63,20 +75,20 @@ public class Flight {
         return departureDate;
     }
 
-    public int getHoursDurationScale1() {
-        return hoursDurationScale1;
+    public int getHoursDurationArrival() {
+        return hoursDurationArrival;
     }
 
-    public int getMinutesDurationScale1() {
-        return minutesDurationScale1;
+    public int getMinutesDurationArrival() {
+        return minutesDurationArrival;
     }
 
-    public int getHoursDurationScale2() {
-        return hoursDurationScale2;
+    public int getHoursDurationScale() {
+        return hoursDurationScale;
     }
 
-    public int getMinutesDurationScale2() {
-        return minutesDurationScale2;
+    public int getMinutesDurationScale() {
+        return minutesDurationScale;
     }
     
 }

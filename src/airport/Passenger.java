@@ -5,6 +5,7 @@
 package airport;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 /**
  *
@@ -19,6 +20,7 @@ public class Passenger {
     private int countryPhoneCode;
     private long phone;
     private String country;
+    private ArrayList<Flight> flights;
 
     public Passenger(long id, String firstname, String lastname, LocalDate birthDate, int countryPhoneCode, long phone, String country) {
         this.id = id;
@@ -28,6 +30,7 @@ public class Passenger {
         this.countryPhoneCode = countryPhoneCode;
         this.phone = phone;
         this.country = country;
+        this.flights = new ArrayList<>();
     }
 
     public long getId() {
@@ -56,6 +59,10 @@ public class Passenger {
 
     public String getCountry() {
         return country;
+    }
+
+    public ArrayList<Flight> getFlights() {
+        return flights;
     }
     
 }
