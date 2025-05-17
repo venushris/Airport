@@ -54,7 +54,11 @@ public class Flight {
         
         this.plane.addFlight(this);
     }
-
+    
+    public void addPassenger(Passenger passenger) {
+        this.passengers.add(passenger);
+    }
+    
     public String getId() {
         return id;
     }
@@ -89,6 +93,26 @@ public class Flight {
 
     public int getMinutesDurationScale() {
         return minutesDurationScale;
+    }
+
+    public Plane getPlane() {
+        return plane;
+    }
+
+    public void setDepartureDate(LocalDateTime departureDate) {
+        this.departureDate = departureDate;
+    }
+    
+    public LocalDateTime calculateArrivalDate() {
+        return departureDate.plusHours(hoursDurationScale).plusHours(hoursDurationArrival).plusMinutes(minutesDurationScale).plusMinutes(minutesDurationArrival);
+    }
+    
+    public void delay(int hours, int minutes) {
+        this.departureDate = this.departureDate.plusHours(hours).plusMinutes(minutes);
+    }
+    
+    public int getNumPassengers() {
+        return passengers.size();
     }
     
 }
