@@ -1,146 +1,135 @@
 package airport.storage;
 
-import airport.controller.PassengerController;
-import airport.controller.PlaneController;
-import airport.controller.LocationController;
-import airport.controller.FlightController;
+import airport.controller.*;
+import airport.model.*;
 import airport.response.Response;
-import airport.model.Passenger;
-import airport.model.Plane;
-import airport.model.Location;
-import airport.model.Flight;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONTokener;
+import org.json.*;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-
 public class JsonDataLoader {
 
-    
-    public static void loadAll(PassengerController pc,
-                               PlaneController plc,
-                               LocationController lc,
-                               FlightController fc) throws Exception {
-        loadPassengers(pc);
-        loadPlanes(plc);
-        loadLocations(lc);
-        loadFlights(fc);
+    public static void cargarTodo(
+            PassengerController passengerCtrl,
+            PlaneController planeCtrl,
+            LocationController locationCtrl,
+            FlightController flightCtrl) throws Exception {
+
+        cargarPasajeros(passengerCtrl);
+        cargarAviones(planeCtrl);
+        cargarUbicaciones(locationCtrl);
+        cargarVuelos(flightCtrl);
     }
 
-    private static void loadPassengers(PassengerController pc) throws Exception {
-        try (InputStream is = openJson("passengers")) {
-            JSONArray arr = new JSONArray(new JSONTokener(is));
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject o = arr.getJSONObject(i);
-                long    id      = o.getLong("id");
-                String  fn      = o.getString("firstname");
-                String  ln      = o.getString("lastname");
-                LocalDate bd    = LocalDate.parse(o.getString("birthDate"));
-                int     code    = o.getInt("countryPhoneCode");
-                long    phone   = o.getLong("phone");
-                String  country = o.getString("country");
+    private static void cargarPasajeros(PassengerController pc) throws Exception {
+        try (InputStream input = abrirJson("passengers")) {
+            JSONArray listaPasajeros = new JSONArray(new JSONTokener(input));
+            for (int i = 0; i < listaPasajeros.length(); i++) {
+                JSONObject obj = listaPasajeros.getJSONObject(i);
+                long documento = obj.getLong("id");
+                String nombre = obj.getString("firstname");
+                String apellido = obj.getString("lastname");
+                LocalDate nacimiento = LocalDate.parse(obj.getString("birthDate"));
+                int codigoPais = obj.getInt("countryPhoneCode");
+                long telefono = obj.getLong("phone");
+                String pais = obj.getString("country");
 
-                Response<Passenger> r = pc.registerPassenger(
-                        id, fn, ln,
-                        bd.getYear(), bd.getMonthValue(), bd.getDayOfMonth(),
-                        code, phone, country
+                Response<Passenger> resultado = pc.registerPassenger(
+                        documento, nombre, apellido,
+                        nacimiento.getYear(), nacimiento.getMonthValue(), nacimiento.getDayOfMonth(),
+                        codigoPais, telefono, pais
                 );
-                if (!r.isSuccess()) {
-                    System.err.println("Error cargando pasajero " + id + ": " + r.getMessage());
+
+                if (!resultado.isSuccess()) {
+                    System.err.println("❌ Falló el pasajero " + documento + ": " + resultado.getMessage());
                 }
             }
         }
     }
 
-    private static void loadPlanes(PlaneController plc) throws Exception {
-        try (InputStream is = openJson("planes")) {
-            JSONArray arr = new JSONArray(new JSONTokener(is));
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject o = arr.getJSONObject(i);
-                String id         = o.getString("id");
-                String brand      = o.getString("brand");
-                String model      = o.getString("model");
-                int    maxCap     = o.getInt("maxCapacity");
-                String airline    = o.getString("airline");
+    private static void cargarAviones(PlaneController plc) throws Exception {
+        try (InputStream input = abrirJson("planes")) {
+            JSONArray listaAviones = new JSONArray(new JSONTokener(input));
+            for (int i = 0; i < listaAviones.length(); i++) {
+                JSONObject obj = listaAviones.getJSONObject(i);
+                String codigo = obj.getString("id");
+                String marca = obj.getString("brand");
+                String modelo = obj.getString("model");
+                int capacidad = obj.getInt("maxCapacity");
+                String aerolinea = obj.getString("airline");
 
-                Response<Plane> r = plc.createPlane(id, brand, model, maxCap, airline);
-                if (!r.isSuccess()) {
-                    System.err.println("Error cargando avión " + id + ": " + r.getMessage());
+                Response<Plane> resultado = plc.createPlane(codigo, marca, modelo, capacidad, aerolinea);
+                if (!resultado.isSuccess()) {
+                    System.err.println("❌ Falló el avión " + codigo + ": " + resultado.getMessage());
                 }
             }
         }
     }
 
-    private static void loadLocations(LocationController lc) throws Exception {
-        try (InputStream is = openJson("locations")) {
-            JSONArray arr = new JSONArray(new JSONTokener(is));
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject o = arr.getJSONObject(i);
-                String  id      = o.getString("airportId");
-                String  name    = o.getString("airportName");
-                String  city    = o.getString("airportCity");
-                String  country = o.getString("airportCountry");
-                double  lat     = o.getDouble("airportLatitude");
-                double  lon     = o.getDouble("airportLongitude");
+    private static void cargarUbicaciones(LocationController lc) throws Exception {
+        try (InputStream input = abrirJson("locations")) {
+            JSONArray listaLugares = new JSONArray(new JSONTokener(input));
+            for (int i = 0; i < listaLugares.length(); i++) {
+                JSONObject obj = listaLugares.getJSONObject(i);
+                String idAeropuerto = obj.getString("airportId");
+                String nombreAeropuerto = obj.getString("airportName");
+                String ciudad = obj.getString("airportCity");
+                String pais = obj.getString("airportCountry");
+                double latitud = obj.getDouble("airportLatitude");
+                double longitud = obj.getDouble("airportLongitude");
 
-                Response<Location> r = lc.createLocation(id, name, city, country, lat, lon);
-                if (!r.isSuccess()) {
-                    System.err.println("Error cargando localización " + id + ": " + r.getMessage());
+                Response<Location> resultado = lc.createLocation(idAeropuerto, nombreAeropuerto, ciudad, pais, latitud, longitud);
+                if (!resultado.isSuccess()) {
+                    System.err.println("❌ Falló la ubicación " + idAeropuerto + ": " + resultado.getMessage());
                 }
             }
         }
     }
 
-    private static void loadFlights(FlightController fc) throws Exception {
-        try (InputStream is = openJson("flights")) {
-            JSONArray arr = new JSONArray(new JSONTokener(is));
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject o = arr.getJSONObject(i);
-                String id           = o.getString("id");
-                String planeId      = o.getString("plane");
-                String depLoc       = o.getString("departureLocation");
-                String arrLoc       = o.getString("arrivalLocation");
-                String scaleLoc     = o.optString("scaleLocation", "").trim();
-                LocalDateTime depDT = LocalDateTime.parse(o.getString("departureDate"));
-                int arrH            = o.getInt("hoursDurationArrival");
-                int arrM            = o.getInt("minutesDurationArrival");
-                int scH             = o.getInt("hoursDurationScale");
-                int scM             = o.getInt("minutesDurationScale");
+    private static void cargarVuelos(FlightController fc) throws Exception {
+        try (InputStream input = abrirJson("flights")) {
+            JSONArray vuelos = new JSONArray(new JSONTokener(input));
+            for (int i = 0; i < vuelos.length(); i++) {
+                JSONObject obj = vuelos.getJSONObject(i);
 
-                Response<Flight> r = fc.createFlight(
-                        id,
-                        planeId,
-                        depLoc,
-                        arrLoc,
-                        scaleLoc,
-                        depDT.getYear(), depDT.getMonthValue(), depDT.getDayOfMonth(),
-                        depDT.getHour(), depDT.getMinute(),
-                        arrH, arrM, scH, scM
+                String vueloId = obj.getString("id");
+                String avionId = obj.getString("plane");
+                String origen = obj.getString("departureLocation");
+                String destino = obj.getString("arrivalLocation");
+                String escala = obj.optString("scaleLocation", "").trim();
+                LocalDateTime salida = LocalDateTime.parse(obj.getString("departureDate"));
+                int horasLlegada = obj.getInt("hoursDurationArrival");
+                int minsLlegada = obj.getInt("minutesDurationArrival");
+                int horasEscala = obj.getInt("hoursDurationScale");
+                int minsEscala = obj.getInt("minutesDurationScale");
+
+                Response<Flight> resultado = fc.createFlight(
+                        vueloId, avionId, origen, destino, escala,
+                        salida.getYear(), salida.getMonthValue(), salida.getDayOfMonth(),
+                        salida.getHour(), salida.getMinute(),
+                        horasLlegada, minsLlegada, horasEscala, minsEscala
                 );
-                if (!r.isSuccess()) {
-                    System.err.println("Error cargando vuelo " + id + ": " + r.getMessage());
+
+                if (!resultado.isSuccess()) {
+                    System.err.println("❌ Falló el vuelo " + vueloId + ": " + resultado.getMessage());
                     continue;
                 }
-            
-                if (o.has("passengers")) {
-                    JSONArray pa = o.getJSONArray("passengers");
-                    for (int j = 0; j < pa.length(); j++) {
-                        long pid = pa.getLong(j);
-                        fc.addPassengerToFlight(id, pid);
+
+                if (obj.has("passengers")) {
+                    JSONArray pasajeros = obj.getJSONArray("passengers");
+                    for (int j = 0; j < pasajeros.length(); j++) {
+                        long pasajeroId = pasajeros.getLong(j);
+                        fc.addPassengerToFlight(vueloId, pasajeroId);
                     }
                 }
             }
         }
     }
 
-    private static InputStream openJson(String name) throws Exception {
-        String path = "json/" + name + ".json";
-        return new FileInputStream(path);
+    private static InputStream abrirJson(String nombreArchivo) throws Exception {
+        return new FileInputStream("json/" + nombreArchivo + ".json");
     }
 }
-
