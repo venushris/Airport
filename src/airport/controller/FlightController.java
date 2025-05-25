@@ -13,260 +13,217 @@ import airport.storage.Repository;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class FlightController implements Subject {
-    private static final Pattern ID_PATTERN = Pattern.compile("^[A-Z]{3}\\d{3}$");
+    private static final Pattern FLIGHT_CODE_REGEX = Pattern.compile("^[A-Z]{3}\\d{3}$");
 
-    private final Repository<Flight, String>   flightRepo;
-    private final Repository<Plane, String>    planeRepo;
-    private final Repository<Location, String> locationRepo;
-    private final Repository<Passenger, Long>  passengerRepo;
-    private final List<Observer> observers;
+    private final Repository<Flight, String> flightStorage;
+    private final Repository<Plane, String> aircraftStorage;
+    private final Repository<Location, String> placeStorage;
+    private final Repository<Passenger, Long> travelerStorage;
+    private final List<Observer> notificationReceivers;
 
-    public FlightController(Repository<Flight, String> flightRepo,
-                            Repository<Plane, String> planeRepo,
-                            Repository<Location, String> locationRepo,
-                            Repository<Passenger, Long> passengerRepo) {
-        this.flightRepo    = flightRepo;
-        this.planeRepo     = planeRepo;
-        this.locationRepo  = locationRepo;
-        this.passengerRepo = passengerRepo;
-        this.observers = new ArrayList<>();
+    public FlightController(Repository<Flight, String> flightDb,
+                           Repository<Plane, String> planeDb,
+                           Repository<Location, String> locationDb,
+                           Repository<Passenger, Long> passengerDb) {
+        this.flightStorage = flightDb;
+        this.aircraftStorage = planeDb;
+        this.placeStorage = locationDb;
+        this.travelerStorage = passengerDb;
+        this.notificationReceivers = new ArrayList<>();
     }
 
     @Override
-    public void registerObserver(Observer o) {
-        if (o != null && !observers.contains(o)) {
-            observers.add(o);
+    public void registerObserver(Observer observer) {
+        if (observer != null && !notificationReceivers.contains(observer)) {
+            notificationReceivers.add(observer);
         }
     }
 
     @Override
-    public void removeObserver(Observer o) {
-        observers.remove(o);
+    public void removeObserver(Observer observer) {
+        notificationReceivers.remove(observer);
     }
 
     @Override
-    public void notifyObservers(String dataType) {
-        for (Observer observer : observers) {
-            observer.update(dataType);
-        }
+    public void notifyObservers(String updateType) {
+        notificationReceivers.forEach(observer -> observer.update(updateType));
     }
 
-    public Response<Flight> createFlight(String id,
-                                         String planeId,
-                                         String departureLocId,
-                                         String arrivalLocId,
-                                         String scaleLocId,
-                                         int year, int month, int day,
-                                         int depHour, int depMinute,
-                                         int arrDurHour, int arrDurMinute,
-                                         int scaleDurHour, int scaleDurMinute) {
-        if (id == null || !ID_PATTERN.matcher(id).matches())
+    public Response<Flight> createNewFlight(String flightNumber,
+                                          String aircraftId,
+                                          String originId,
+                                          String destinationId,
+                                          String stopoverId,
+                                          int year, int month, int day,
+                                          int hour, int minute,
+                                          int flightHours, int flightMins,
+                                          int stopHours, int stopMins) {
+        if (flightNumber == null || !FLIGHT_CODE_REGEX.matcher(flightNumber).matches())
             return Response.of(StatusCode.BAD_REQUEST,
-                    "El ID debe tener formato XXXYYY");
-        if (flightRepo.findById(id).isPresent())
+                    "Flight ID must follow XXXYYY format");
+        if (flightStorage.findById(flightNumber).isPresent())
             return Response.of(StatusCode.CONFLICT,
-                    "Ya existe un vuelo con ID=" + id);
+                    "Flight with ID=" + flightNumber + " already exists");
 
-        Optional<Plane> optPlane = planeRepo.findById(planeId);
-        if (optPlane.isEmpty())
+        Optional<Plane> planeOpt = aircraftStorage.findById(aircraftId);
+        if (planeOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe avión con ID=" + planeId);
-        Plane plane = optPlane.get();
+                    "Aircraft with ID=" + aircraftId + " not found");
 
-        Optional<Location> optDep = locationRepo.findById(departureLocId);
-        if (optDep.isEmpty())
+        Optional<Location> originOpt = placeStorage.findById(originId);
+        if (originOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe localización de salida ID=" + departureLocId);
-        Optional<Location> optArr = locationRepo.findById(arrivalLocId);
-        if (optArr.isEmpty())
+                    "Origin location ID=" + originId + " not found");
+        Optional<Location> destOpt = placeStorage.findById(destinationId);
+        if (destOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe localización de llegada ID=" + arrivalLocId);
-        Location depLoc = optDep.get(), arrLoc = optArr.get();
+                    "Destination location ID=" + destinationId + " not found");
 
-        boolean hasScale = scaleLocId != null && !scaleLocId.isBlank();
-        Location scaleLoc = null;
-        if (hasScale) {
-            Optional<Location> optScale = locationRepo.findById(scaleLocId);
-            if (optScale.isEmpty())
+        boolean hasStopover = stopoverId != null && !stopoverId.isBlank();
+        Location stopover = null;
+        if (hasStopover) {
+            Optional<Location> stopOpt = placeStorage.findById(stopoverId);
+            if (stopOpt.isEmpty())
                 return Response.of(StatusCode.NOT_FOUND,
-                        "No existe localización de escala ID=" + scaleLocId);
-            scaleLoc = optScale.get();
+                        "Stopover location ID=" + stopoverId + " not found");
+            stopover = stopOpt.get();
         }
-        if (!hasScale && (scaleDurHour != 0 || scaleDurMinute != 0))
-            return Response.of(StatusCode.BAD_REQUEST,
-                    "Si no hay escala, la duración debe ser 00:00");
-        if (arrDurHour < 0 || arrDurMinute < 0
-                || (arrDurHour == 0 && arrDurMinute == 0)
-                || arrDurMinute > 59)
-            return Response.of(StatusCode.BAD_REQUEST,
-                    "Duración de vuelo debe ser > 00:00 y minutos < 60");
-        if (scaleDurHour < 0 || scaleDurMinute < 0 || scaleDurMinute > 59)
-            return Response.of(StatusCode.BAD_REQUEST,
-                    "Duración de escala inválida");
 
-        LocalDateTime departureDate;
+        if (!hasStopover && (stopHours != 0 || stopMins != 0))
+            return Response.of(StatusCode.BAD_REQUEST,
+                    "Stop duration must be 00:00 when no stopover");
+        if (flightHours < 0 || flightMins < 0
+                || (flightHours == 0 && flightMins == 0)
+                || flightMins > 59)
+            return Response.of(StatusCode.BAD_REQUEST,
+                    "Invalid flight duration (must be > 00:00 and minutes < 60)");
+        if (stopHours < 0 || stopMins < 0 || stopMins > 59)
+            return Response.of(StatusCode.BAD_REQUEST,
+                    "Invalid stopover duration");
+
+        LocalDateTime departureTime;
         try {
-            departureDate = LocalDateTime.of(year, month, day, depHour, depMinute);
+            departureTime = LocalDateTime.of(year, month, day, hour, minute);
         } catch (DateTimeException e) {
             return Response.of(StatusCode.BAD_REQUEST,
-                    "Fecha u hora de salida inválida");
+                    "Invalid departure date/time");
         }
 
-        Flight toSave = hasScale
-                ? new Flight(id, plane, depLoc, scaleLoc, arrLoc,
-                departureDate, arrDurHour, arrDurMinute,
-                scaleDurHour, scaleDurMinute)
-                : new Flight(id, plane, depLoc, arrLoc,
-                departureDate, arrDurHour, arrDurMinute);
+        Flight newFlight = hasStopover
+                ? new Flight(flightNumber, planeOpt.get(), originOpt.get(), 
+                           stopover, destOpt.get(), departureTime, 
+                           flightHours, flightMins, stopHours, stopMins)
+                : new Flight(flightNumber, planeOpt.get(), originOpt.get(), 
+                           destOpt.get(), departureTime, flightHours, flightMins);
 
-        Flight saved = flightRepo.save(toSave);
-        Flight clone = hasScale
-                ? new Flight(saved.getId(), saved.getPlane(),
-                saved.getDepartureLocation(),
-                saved.getScaleLocation(),
-                saved.getArrivalLocation(),
-                saved.getDepartureDate(),
-                saved.getHoursDurationArrival(),
-                saved.getMinutesDurationArrival(),
-                saved.getHoursDurationScale(),
-                saved.getMinutesDurationScale())
-                : new Flight(saved.getId(), saved.getPlane(),
-                saved.getDepartureLocation(),
-                saved.getArrivalLocation(),
-                saved.getDepartureDate(),
-                saved.getHoursDurationArrival(),
-                saved.getMinutesDurationArrival());
-        notifyObservers("flight"); // Notify observers
-        return Response.of(StatusCode.CREATED,
-                "Vuelo creado exitosamente", clone);
+        Flight storedFlight = flightStorage.save(newFlight);
+        Flight flightCopy = createFlightCopy(storedFlight);
+        
+        notifyObservers("flight");
+        return Response.of(StatusCode.CREATED, "Flight created successfully", flightCopy);
     }
 
-    public Response<List<Flight>> getAllFlights() {
-        List<Flight> originals = flightRepo.findAll();
-        List<Flight> clones = originals.stream().map(f ->
-                        f.getScaleLocation() == null
-                                ? new Flight(f.getId(), f.getPlane(),
-                                f.getDepartureLocation(),
-                                f.getArrivalLocation(),
-                                f.getDepartureDate(),
-                                f.getHoursDurationArrival(),
-                                f.getMinutesDurationArrival())
-                                : new Flight(f.getId(), f.getPlane(),
-                                f.getDepartureLocation(),
-                                f.getScaleLocation(),
-                                f.getArrivalLocation(),
-                                f.getDepartureDate(),
-                                f.getHoursDurationArrival(),
-                                f.getMinutesDurationArrival(),
-                                f.getHoursDurationScale(),
-                                f.getMinutesDurationScale()))
+    public Response<List<Flight>> retrieveAllFlights() {
+        List<Flight> originalFlights = flightStorage.findAll();
+        List<Flight> flightCopies = originalFlights.stream()
+                .map(this::createFlightCopy)
                 .collect(Collectors.toList());
-        return Response.of(StatusCode.OK, "Listado de vuelos", clones);
+        return Response.of(StatusCode.OK, "Flight list", flightCopies);
     }
 
-    public Response<List<Flight>> getFlightsByPassenger(long passengerId) {
-        Optional<Passenger> optP = passengerRepo.findById(passengerId);
-        if (optP.isEmpty())
+    public Response<List<Flight>> getPassengerFlights(long travelerId) {
+        Optional<Passenger> passengerOpt = travelerStorage.findById(travelerId);
+        if (passengerOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe pasajero con ID=" + passengerId);
-        List<Flight> sorted = optP.get().getFlights().stream()
-                .sorted((a, b) -> a.getDepartureDate()
-                        .compareTo(b.getDepartureDate()))
+                    "Passenger with ID=" + travelerId + " not found");
+                    
+        List<Flight> orderedFlights = passengerOpt.get().getFlights().stream()
+                .sorted(Comparator.comparing(Flight::getDepartureDate))
                 .collect(Collectors.toList());
-        List<Flight> clones = sorted.stream().map(f ->
-                        f.getScaleLocation() == null
-                                ? new Flight(f.getId(), f.getPlane(),
-                                f.getDepartureLocation(),
-                                f.getArrivalLocation(),
-                                f.getDepartureDate(),
-                                f.getHoursDurationArrival(),
-                                f.getMinutesDurationArrival())
-                                : new Flight(f.getId(), f.getPlane(),
-                                f.getDepartureLocation(),
-                                f.getScaleLocation(),
-                                f.getArrivalLocation(),
-                                f.getDepartureDate(),
-                                f.getHoursDurationArrival(),
-                                f.getMinutesDurationArrival(),
-                                f.getHoursDurationScale(),
-                                f.getMinutesDurationScale()))
+                
+        List<Flight> flightCopies = orderedFlights.stream()
+                .map(this::createFlightCopy)
                 .collect(Collectors.toList());
-        return Response.of(StatusCode.OK, "Vuelos del pasajero", clones);
+                
+        return Response.of(StatusCode.OK, "Passenger's flights", flightCopies);
     }
 
-    public Response<Flight> addPassengerToFlight(String flightId, long passengerId) {
-        Optional<Flight> optF = flightRepo.findById(flightId);
-        if (optF.isEmpty())
+    public Response<Flight> assignPassengerToFlight(String flightNum, long passengerId) {
+        Optional<Flight> flightOpt = flightStorage.findById(flightNum);
+        if (flightOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe vuelo con ID=" + flightId);
-        Optional<Passenger> optP = passengerRepo.findById(passengerId);
-        if (optP.isEmpty())
+                    "Flight with ID=" + flightNum + " not found");
+                    
+        Optional<Passenger> passengerOpt = travelerStorage.findById(passengerId);
+        if (passengerOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe pasajero con ID=" + passengerId);
-        Flight f = optF.get(), clone;
-        Passenger p = optP.get();
+                    "Passenger with ID=" + passengerId + " not found");
+                    
+        Flight flight = flightOpt.get();
+        Passenger traveler = passengerOpt.get();
 
-        // Check if plane has capacity
-        if (f.getNumPassengers() >= f.getPlane().getMaxCapacity()) {
+        if (flight.getNumPassengers() >= flight.getPlane().getMaxCapacity()) {
             return Response.of(StatusCode.CONFLICT,
-                    "El vuelo ha alcanzado su capacidad máxima de pasajeros.");
+                    "Flight has reached maximum passenger capacity");
         }
 
-        f.addPassenger(p);
-        p.addFlight(f);
-        flightRepo.update(f); 
+        flight.addPassenger(traveler);
+        traveler.addFlight(flight);
+        flightStorage.update(flight);
 
-        clone = new Flight(f.getId(), f.getPlane(),
-                f.getDepartureLocation(),
-                f.getArrivalLocation(),
-                f.getDepartureDate(),
-                f.getHoursDurationArrival(),
-                f.getMinutesDurationArrival());
+        Flight flightCopy = createFlightCopy(flight);
        
         notifyObservers("flight");
         notifyObservers("passenger");
-        return Response.of(StatusCode.OK, "Pasajero agregado al vuelo", clone);
+        return Response.of(StatusCode.OK, "Passenger added to flight", flightCopy);
     }
 
-    public Response<Flight> delayFlight(String flightId,
-                                        int delayHours,
-                                        int delayMinutes) {
-        Optional<Flight> optF = flightRepo.findById(flightId);
-        if (optF.isEmpty())
+    public Response<Flight> postponeFlight(String flightNum,
+                                         int hoursDelay,
+                                         int minutesDelay) {
+        Optional<Flight> flightOpt = flightStorage.findById(flightNum);
+        if (flightOpt.isEmpty())
             return Response.of(StatusCode.NOT_FOUND,
-                    "No existe vuelo con ID=" + flightId);
-        if (delayHours < 0 || delayMinutes < 0
-                || (delayHours == 0 && delayMinutes == 0)
-                || delayMinutes > 59)
+                    "Flight with ID=" + flightNum + " not found");
+                    
+        if (hoursDelay < 0 || minutesDelay < 0
+                || (hoursDelay == 0 && minutesDelay == 0)
+                || minutesDelay > 59)
             return Response.of(StatusCode.BAD_REQUEST,
-                    "Tiempo de retraso inválido");
-        Flight f = optF.get(), clone;
-        f.delay(delayHours, delayMinutes);
-        flightRepo.update(f);
-        clone = f.getScaleLocation() == null
-                ? new Flight(f.getId(), f.getPlane(),
-                f.getDepartureLocation(),
-                f.getArrivalLocation(),
-                f.getDepartureDate(),
-                f.getHoursDurationArrival(),
-                f.getMinutesDurationArrival())
-                : new Flight(f.getId(), f.getPlane(),
-                f.getDepartureLocation(),
-                f.getScaleLocation(),
-                f.getArrivalLocation(),
-                f.getDepartureDate(),
-                f.getHoursDurationArrival(),
-                f.getMinutesDurationArrival(),
-                f.getHoursDurationScale(),
-                f.getMinutesDurationScale());
-        notifyObservers("flight"); // Notify observers
-        return Response.of(StatusCode.OK, "Vuelo retrasado exitosamente", clone);
+                    "Invalid delay time");
+                    
+        Flight flight = flightOpt.get();
+        flight.delay(hoursDelay, minutesDelay);
+        flightStorage.update(flight);
+        
+        Flight flightCopy = createFlightCopy(flight);
+        notifyObservers("flight");
+        return Response.of(StatusCode.OK, "Flight delayed successfully", flightCopy);
+    }
+
+    private Flight createFlightCopy(Flight original) {
+        return original.getScaleLocation() == null
+                ? new Flight(original.getId(), original.getPlane(),
+                        original.getDepartureLocation(),
+                        original.getArrivalLocation(),
+                        original.getDepartureDate(),
+                        original.getHoursDurationArrival(),
+                        original.getMinutesDurationArrival())
+                : new Flight(original.getId(), original.getPlane(),
+                        original.getDepartureLocation(),
+                        original.getScaleLocation(),
+                        original.getArrivalLocation(),
+                        original.getDepartureDate(),
+                        original.getHoursDurationArrival(),
+                        original.getMinutesDurationArrival(),
+                        original.getHoursDurationScale(),
+                        original.getMinutesDurationScale());
     }
 }
-
