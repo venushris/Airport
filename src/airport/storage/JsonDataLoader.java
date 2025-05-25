@@ -3,9 +3,11 @@ package airport.storage;
 import airport.controller.*;
 import airport.model.*;
 import airport.response.Response;
+import java.io.File;
 import org.json.*;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -106,7 +108,7 @@ public class JsonDataLoader {
                 int horasEscala = obj.getInt("hoursDurationScale");
                 int minsEscala = obj.getInt("minutesDurationScale");
 
-                Response<Flight> resultado = fc.createFlight(
+                Response<Flight> resultado = fc.createNewFlight(
                         vueloId, avionId, origen, destino, escala,
                         salida.getYear(), salida.getMonthValue(), salida.getDayOfMonth(),
                         salida.getHour(), salida.getMinute(),
@@ -122,14 +124,22 @@ public class JsonDataLoader {
                     JSONArray pasajeros = obj.getJSONArray("passengers");
                     for (int j = 0; j < pasajeros.length(); j++) {
                         long pasajeroId = pasajeros.getLong(j);
-                        fc.addPassengerToFlight(vueloId, pasajeroId);
+                        fc.assignPassengerToFlight(vueloId, pasajeroId);
                     }
                 }
             }
         }
     }
 
+    
     private static InputStream abrirJson(String nombreArchivo) throws Exception {
-        return new FileInputStream("json/" + nombreArchivo + ".json");
+        String ruta = "json/" + nombreArchivo + ".json";
+        File archivo = new File(ruta);
+
+        if (!archivo.exists()) {  
+            throw new FileNotFoundException("Archivo no encontrado: " + ruta);
+        }
+
+        return new FileInputStream(archivo);
     }
 }

@@ -36,7 +36,7 @@ public class Main {
                             locationRepo,
                             passengerRepo);
 
-            JsonDataLoader.loadAll(
+            JsonDataLoader.cargarTodo(
                     passengerController,
                     planeController,
                     locationController,

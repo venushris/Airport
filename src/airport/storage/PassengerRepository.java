@@ -18,7 +18,7 @@ public class PassengerRepository implements Repository<Passenger, Long> {
 
     @Override
     public Passenger update(Passenger p) {
-        // elimino el viejo y agrego el nuevo
+       
         data.removeIf(x -> x.getId() == p.getId());
         data.add(p);
         data.sort(Comparator.comparingLong(Passenger::getId));
@@ -34,7 +34,6 @@ public class PassengerRepository implements Repository<Passenger, Long> {
 
     @Override
     public List<Passenger> findAll() {
-        // devolvemos una copia de la lista
         return data.stream()
                 .collect(Collectors.toList());
     }
